@@ -37,6 +37,7 @@ public class MechanicalWorkbenchScreen extends AbstractContainerScreen<Mechanica
         RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         guiGraphics.blit(BG, leftPos, topPos, 0, 0, imageWidth, imageHeight);
         renderRotationGauge(guiGraphics);
+        renderFeGauge(guiGraphics);
     }
 
     @Override
@@ -57,6 +58,8 @@ public class MechanicalWorkbenchScreen extends AbstractContainerScreen<Mechanica
         int height = 54;
         int max = MechanicalWorkbenchBlockEntity.MAX_ROTATIONS;
         int rotations = menu.getSyncedRotations();
+        boolean enoughForCraft = rotations >= MechanicalWorkbenchBlockEntity.ROTATIONS_PER_CRAFT;
+        int fillColor = enoughForCraft ? 0xFF72C962 : 0xFFB54A4A;
 
         guiGraphics.fill(x, y, x + width, y + height, 0xFF2B2B2B);
 
@@ -68,7 +71,28 @@ public class MechanicalWorkbenchScreen extends AbstractContainerScreen<Mechanica
         if (filled <= 0)
             return;
 
-        guiGraphics.fill(x + 1, y + height - 1 - filled, x + width - 1, y + height - 1, 0xFF72C962);
+        guiGraphics.fill(x + 1, y + height - 1 - filled, x + width - 1, y + height - 1, fillColor);
+    }
+
+    private void renderFeGauge(GuiGraphics guiGraphics) {
+        int x = leftPos + 16;
+        int y = topPos + 31;
+        int width = 12;
+        int height = 40;
+        int max = MechanicalWorkbenchBlockEntity.MAX_FE_BUFFER;
+        int stored = menu.getSyncedFe();
+
+        guiGraphics.fill(x, y, x + width, y + height, 0xFF2B2B2B);
+
+        if (max <= 0)
+            return;
+
+        int innerHeight = height - 2;
+        int filled = (int) ((stored / (float) max) * innerHeight);
+        if (filled <= 0)
+            return;
+
+        guiGraphics.fill(x + 1, y + height - 1 - filled, x + width - 1, y + height - 1, 0xFF4DA3FF);
     }
 
     private void handleChargeClick() {

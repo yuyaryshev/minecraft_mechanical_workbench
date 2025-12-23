@@ -38,6 +38,8 @@ public class MechanicalWorkbenchMenu extends RecipeBookMenu<CraftingContainer> {
     private final Player player;
     private final MechanicalWorkbenchBlockEntity workbench;
     private int syncedRotations;
+    private int syncedFe;
+    private int lastRotationForResult;
 
     public MechanicalWorkbenchMenu(int id, Inventory inventory, ContainerLevelAccess access,
                                    MechanicalWorkbenchBlockEntity workbench) {
@@ -79,6 +81,20 @@ public class MechanicalWorkbenchMenu extends RecipeBookMenu<CraftingContainer> {
                 syncedRotations = value;
             }
         });
+
+        this.addDataSlot(new DataSlot() {
+            @Override
+            public int get() {
+                if (workbench == null)
+                    return syncedFe;
+                return workbench.getFeBuffer();
+            }
+
+            @Override
+            public void set(int value) {
+                syncedFe = value;
+            }
+        });
     }
 
     public static MechanicalWorkbenchMenu fromNetwork(int id, Inventory inventory, FriendlyByteBuf buf) {
@@ -92,6 +108,10 @@ public class MechanicalWorkbenchMenu extends RecipeBookMenu<CraftingContainer> {
 
     public int getSyncedRotations() {
         return syncedRotations;
+    }
+
+    public int getSyncedFe() {
+        return syncedFe;
     }
 
     @Override
@@ -125,6 +145,18 @@ public class MechanicalWorkbenchMenu extends RecipeBookMenu<CraftingContainer> {
             }
             CraftingMenuAccess.updateCraftingResult(this, level, player, craftSlots, resultSlots);
         });
+    }
+
+    @Override
+    public void broadcastChanges() {
+        super.broadcastChanges();
+        if (player.level().isClientSide || workbench == null)
+            return;
+        int rotations = Mth.floor(workbench.getRotationBuffer());
+        if (rotations == lastRotationForResult)
+            return;
+        lastRotationForResult = rotations;
+        slotsChanged(craftSlots);
     }
 
     @Override
