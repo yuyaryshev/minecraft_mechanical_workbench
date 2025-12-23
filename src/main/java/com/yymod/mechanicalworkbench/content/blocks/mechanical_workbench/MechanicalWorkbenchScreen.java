@@ -24,6 +24,8 @@ public class MechanicalWorkbenchScreen extends AbstractContainerScreen<Mechanica
     @Override
     protected void init() {
         super.init();
+        if (!isManualChargeEnabled())
+            return;
         int x = leftPos + 16;
         int y = topPos + 17;
         chargeButton = Button.builder(Component.literal("+"), button -> handleChargeClick())
@@ -47,7 +49,7 @@ public class MechanicalWorkbenchScreen extends AbstractContainerScreen<Mechanica
             return;
         boolean canAfford = minecraft.player.isCreative()
                 || minecraft.player.getFoodData().getFoodLevel() > 0;
-        boolean hasRoom = menu.getSyncedRotations() < MechanicalWorkbenchBlockEntity.MAX_ROTATIONS;
+        boolean hasRoom = menu.getSyncedRotations() < MechanicalWorkbenchBlockEntity.maxRotations();
         chargeButton.active = canAfford && hasRoom;
     }
 
@@ -56,9 +58,9 @@ public class MechanicalWorkbenchScreen extends AbstractContainerScreen<Mechanica
         int y = topPos + 17;
         int width = 6;
         int height = 54;
-        int max = MechanicalWorkbenchBlockEntity.MAX_ROTATIONS;
+        int max = MechanicalWorkbenchBlockEntity.maxRotations();
         int rotations = menu.getSyncedRotations();
-        boolean enoughForCraft = rotations >= MechanicalWorkbenchBlockEntity.ROTATIONS_PER_CRAFT;
+        boolean enoughForCraft = rotations >= MechanicalWorkbenchBlockEntity.rotationsPerCraft();
         int fillColor = enoughForCraft ? 0xFF72C962 : 0xFFB54A4A;
 
         guiGraphics.fill(x, y, x + width, y + height, 0xFF2B2B2B);
@@ -79,7 +81,7 @@ public class MechanicalWorkbenchScreen extends AbstractContainerScreen<Mechanica
         int y = topPos + 31;
         int width = 12;
         int height = 40;
-        int max = MechanicalWorkbenchBlockEntity.MAX_FE_BUFFER;
+        int max = MechanicalWorkbenchBlockEntity.maxFeBuffer();
         int stored = menu.getSyncedFe();
 
         guiGraphics.fill(x, y, x + width, y + height, 0xFF2B2B2B);
@@ -98,7 +100,13 @@ public class MechanicalWorkbenchScreen extends AbstractContainerScreen<Mechanica
     private void handleChargeClick() {
         if (minecraft == null || minecraft.gameMode == null)
             return;
+        if (!isManualChargeEnabled())
+            return;
         minecraft.gameMode.handleInventoryButtonClick(menu.containerId, CHARGE_BUTTON_ID);
+    }
+
+    private boolean isManualChargeEnabled() {
+        return MechanicalWorkbenchBlockEntity.isManualChargeEnabled();
     }
 }
 

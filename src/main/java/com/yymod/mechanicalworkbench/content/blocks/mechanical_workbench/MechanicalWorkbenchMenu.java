@@ -118,9 +118,11 @@ public class MechanicalWorkbenchMenu extends RecipeBookMenu<CraftingContainer> {
     public boolean clickMenuButton(Player player, int id) {
         if (id != 0)
             return super.clickMenuButton(player, id);
+        if (!MechanicalWorkbenchBlockEntity.isManualChargeEnabled())
+            return false;
         if (player.level().isClientSide || workbench == null)
             return false;
-        if (workbench.getRotationBuffer() >= MechanicalWorkbenchBlockEntity.MAX_ROTATIONS)
+        if (workbench.getRotationBuffer() >= MechanicalWorkbenchBlockEntity.maxRotations())
             return false;
         if (!player.isCreative()) {
             FoodData foodData = player.getFoodData();
@@ -131,7 +133,10 @@ public class MechanicalWorkbenchMenu extends RecipeBookMenu<CraftingContainer> {
             if (foodData.getSaturationLevel() > foodData.getFoodLevel())
                 foodData.setSaturation(foodData.getFoodLevel());
         }
-        workbench.addManualRotations(1);
+        int amount = MechanicalWorkbenchBlockEntity.manualChargeAmount();
+        if (amount <= 0)
+            return false;
+        workbench.addManualRotations(amount);
         return true;
     }
 

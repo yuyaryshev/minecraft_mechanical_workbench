@@ -1,6 +1,5 @@
 package com.yymod.mechanicalworkbench.registries;
 
-import com.simibubi.create.foundation.data.ModelGen;
 import com.tterrag.registrate.util.entry.BlockEntry;
 import com.yymod.mechanicalworkbench.content.blocks.mechanical_workbench.MechanicalWorkbenchBlock;
 import com.yymod.mechanicalworkbench.content.blocks.mechanical_workbench.MechanicalWorkbenchGenerator;

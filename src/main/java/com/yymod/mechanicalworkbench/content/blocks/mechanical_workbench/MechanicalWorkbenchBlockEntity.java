@@ -1,6 +1,8 @@
 package com.yymod.mechanicalworkbench.content.blocks.mechanical_workbench;
 
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
+import com.yymod.mechanicalworkbench.config.MWConfigs;
+import com.yymod.mechanicalworkbench.config.MWMechanicalWorkbenchConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -18,11 +20,7 @@ import net.minecraftforge.energy.IEnergyStorage;
 
 public class MechanicalWorkbenchBlockEntity extends KineticBlockEntity implements MenuProvider {
 
-    public static final int MAX_ROTATIONS = 100;
-    public static final int ROTATIONS_PER_CRAFT = 20;
-    public static final int FE_PER_ROTATION = 10;
     public static final int MAX_FE_EXTRACT_PER_TICK = 100;
-    public static final int MAX_FE_BUFFER = MAX_ROTATIONS * FE_PER_ROTATION;
 
     private float rotationBuffer;
     private int feBuffer;
@@ -46,7 +44,7 @@ public class MechanicalWorkbenchBlockEntity extends KineticBlockEntity implement
         if (rotationsThisTick <= 0f)
             return;
 
-        float updated = Math.min(MAX_ROTATIONS, rotationBuffer + rotationsThisTick);
+        float updated = Math.min(maxRotations(), rotationBuffer + rotationsThisTick);
         if (updated != rotationBuffer) {
             rotationBuffer = updated;
             setChanged();
@@ -57,13 +55,13 @@ public class MechanicalWorkbenchBlockEntity extends KineticBlockEntity implement
     }
 
     public boolean canCraft() {
-        return rotationBuffer >= ROTATIONS_PER_CRAFT;
+        return rotationBuffer >= rotationsPerCraft();
     }
 
     public void consumeCraftingRotations(int crafts) {
         if (crafts <= 0)
             return;
-        rotationBuffer = Math.max(0f, rotationBuffer - (ROTATIONS_PER_CRAFT * crafts));
+        rotationBuffer = Math.max(0f, rotationBuffer - (rotationsPerCraft() * crafts));
         setChanged();
         sendData();
     }
@@ -71,7 +69,7 @@ public class MechanicalWorkbenchBlockEntity extends KineticBlockEntity implement
     public void addManualRotations(int rotations) {
         if (rotations <= 0)
             return;
-        rotationBuffer = Math.min(MAX_ROTATIONS, rotationBuffer + rotations);
+        rotationBuffer = Math.min(maxRotations(), rotationBuffer + rotations);
         setChanged();
         sendData();
     }
@@ -87,12 +85,17 @@ public class MechanicalWorkbenchBlockEntity extends KineticBlockEntity implement
     private void pullEnergyFromNeighbors() {
         if (level == null || level.isClientSide)
             return;
-        if (rotationBuffer >= MAX_ROTATIONS && feBuffer >= MAX_FE_BUFFER)
+        int maxRotations = maxRotations();
+        int maxFeBuffer = maxFeBuffer();
+        int fePerRotation = fePerRotation();
+        if (fePerRotation <= 0)
+            return;
+        if (rotationBuffer >= maxRotations && feBuffer >= maxFeBuffer)
             return;
 
-        int rotationsNeeded = Mth.ceil(MAX_ROTATIONS - rotationBuffer);
-        int feNeeded = rotationsNeeded * FE_PER_ROTATION;
-        int remainingBuffer = MAX_FE_BUFFER - feBuffer;
+        int rotationsNeeded = Mth.ceil(maxRotations - rotationBuffer);
+        int feNeeded = rotationsNeeded * fePerRotation;
+        int remainingBuffer = Math.max(0, maxFeBuffer - feBuffer);
         int feToExtract = Math.min(feNeeded, Math.min(MAX_FE_EXTRACT_PER_TICK, remainingBuffer));
         if (feToExtract <= 0)
             return;
@@ -117,24 +120,28 @@ public class MechanicalWorkbenchBlockEntity extends KineticBlockEntity implement
         }
 
         if (extracted > 0) {
-            feBuffer = Math.min(MAX_FE_BUFFER, feBuffer + extracted);
+            feBuffer = Math.min(maxFeBuffer, feBuffer + extracted);
             setChanged();
             sendData();
         }
     }
 
     private void convertFeToRotations() {
-        if (feBuffer <= 0 || rotationBuffer >= MAX_ROTATIONS)
+        int maxRotations = maxRotations();
+        int fePerRotation = fePerRotation();
+        if (fePerRotation <= 0)
             return;
-        int rotationsFromFe = feBuffer / FE_PER_ROTATION;
+        if (feBuffer <= 0 || rotationBuffer >= maxRotations)
+            return;
+        int rotationsFromFe = feBuffer / fePerRotation;
         if (rotationsFromFe <= 0)
             return;
-        int maxAdd = Mth.floor(MAX_ROTATIONS - rotationBuffer);
+        int maxAdd = Mth.floor(maxRotations - rotationBuffer);
         int rotationsToAdd = Math.min(rotationsFromFe, maxAdd);
         if (rotationsToAdd <= 0)
             return;
-        rotationBuffer = Math.min(MAX_ROTATIONS, rotationBuffer + rotationsToAdd);
-        feBuffer -= rotationsToAdd * FE_PER_ROTATION;
+        rotationBuffer = Math.min(maxRotations, rotationBuffer + rotationsToAdd);
+        feBuffer -= rotationsToAdd * fePerRotation;
         setChanged();
         sendData();
     }
@@ -150,7 +157,45 @@ public class MechanicalWorkbenchBlockEntity extends KineticBlockEntity implement
     protected void read(CompoundTag compound, boolean clientPacket) {
         rotationBuffer = compound.getFloat("RotationBuffer");
         feBuffer = compound.getInt("FEBuffer");
+        rotationBuffer = Math.min(rotationBuffer, maxRotations());
+        feBuffer = Math.min(feBuffer, maxFeBuffer());
         super.read(compound, clientPacket);
+    }
+
+    public static int maxRotations() {
+        if (MWConfigs.common() == null)
+            return MWMechanicalWorkbenchConfig.DEFAULT_ROTATION_BUFFER;
+        return Math.max(1, MWConfigs.common().mechanicalWorkbench.rotationBuffer.get());
+    }
+
+    public static int maxFeBuffer() {
+        if (MWConfigs.common() == null)
+            return MWMechanicalWorkbenchConfig.DEFAULT_FE_BUFFER;
+        return Math.max(0, MWConfigs.common().mechanicalWorkbench.feBuffer.get());
+    }
+
+    public static int rotationsPerCraft() {
+        if (MWConfigs.common() == null)
+            return MWMechanicalWorkbenchConfig.DEFAULT_ROTATIONS_PER_CRAFT;
+        return Math.max(1, MWConfigs.common().mechanicalWorkbench.rotationsPerCraft.get());
+    }
+
+    public static int fePerRotation() {
+        if (MWConfigs.common() == null)
+            return MWMechanicalWorkbenchConfig.DEFAULT_FE_PER_ROTATION;
+        return Math.max(0, MWConfigs.common().mechanicalWorkbench.fePerRotation.get());
+    }
+
+    public static boolean isManualChargeEnabled() {
+        if (MWConfigs.common() == null)
+            return MWMechanicalWorkbenchConfig.DEFAULT_MANUAL_CHARGE_ENABLED;
+        return MWConfigs.common().mechanicalWorkbench.manualChargeEnabled.get();
+    }
+
+    public static int manualChargeAmount() {
+        if (MWConfigs.common() == null)
+            return MWMechanicalWorkbenchConfig.DEFAULT_MANUAL_CHARGE_AMOUNT;
+        return Math.max(0, MWConfigs.common().mechanicalWorkbench.manualChargeAmount.get());
     }
 
     @Override
@@ -161,6 +206,15 @@ public class MechanicalWorkbenchBlockEntity extends KineticBlockEntity implement
     @Override
     public AbstractContainerMenu createMenu(int id, Inventory playerInventory, Player player) {
         return new MechanicalWorkbenchMenu(id, playerInventory, ContainerLevelAccess.create(level, worldPosition), this);
+    }
+
+    @Override
+    public float calculateStressApplied() {
+        if (rotationBuffer >= maxRotations())
+            return 0f;
+        double impact = MWConfigs.common().mechanicalWorkbench.stressImpact.get();
+        lastStressApplied = (float) impact;
+        return lastStressApplied;
     }
 }
 
